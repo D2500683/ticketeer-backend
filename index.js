@@ -17,6 +17,7 @@ const io = new Server(server, {
     origin: process.env.ALLOWED_ORIGINS ? 
       process.env.ALLOWED_ORIGINS.split(',') : 
       [
+        'https://ticketeer-backend-2.onrender.com',
         'https://ticketeer-frontend-qt4y.vercel.app',
         'https://ticketeer-frontend.vercel.app',
         'http://localhost:5173',
