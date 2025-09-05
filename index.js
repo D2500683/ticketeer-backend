@@ -16,7 +16,7 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? [process.env.FRONTEND_URL, 'https://*.vercel.app']
+      ? [process.env.FRONTEND_URL, /\.vercel\.app$/]
       : [
           'http://localhost:5173',
           'http://localhost:3000',
@@ -27,7 +27,8 @@ const io = new Server(server, {
           'http://127.0.0.1:8080',
           'http://127.0.0.1:8081'
         ],
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
@@ -102,11 +103,22 @@ app.use(cors({
       'http://127.0.0.1:3000'
     ];
     
+    // Add production frontend URL
+    if (process.env.FRONTEND_URL) {
+      allowedOrigins.push(process.env.FRONTEND_URL);
+    }
+    
+    // Allow all Vercel domains in production
+    if (process.env.NODE_ENV === 'production' && origin && origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      callback(null, true); // Allow all origins for development
+      // Allow all origins in production for now
+      callback(null, true);
     }
   },
   credentials: true,
