@@ -8,44 +8,18 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const { logger, errorLogger } = require('./middleware/logger');
 require('dotenv').config();
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? [process.env.FRONTEND_URL, /\.vercel\.app$/]
-      : [
-          'http://localhost:5173',
-          'http://localhost:3000',
-          'http://localhost:8080',
-          'http://localhost:8081',
-          'http://127.0.0.1:5173',
-          'http://127.0.0.1:3000',
-          'http://127.0.0.1:8080',
-          'http://127.0.0.1:8081'
-        ],
-    methods: ['GET', 'POST'],
-    credentials: true
+    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [],
+    methods: ['GET', 'POST']
   }
 });
 
 const PORT = process.env.PORT || 3001;
-
-// Production logging middleware
-app.use(logger);
-
-// Health check endpoint for production monitoring
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
 
 // Security Middleware
 // Set security HTTP headers
@@ -57,7 +31,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       scriptSrc: ["'self'"],
-      connectSrc: ["'self'", "http://localhost:3001", "https://api.cloudinary.com"],
+      connectSrc: ["'self'", process.env.BACKEND_URL || "http://localhost:3001", "https://api.cloudinary.com"],
       mediaSrc: ["'self'", "https:", "blob:"],
     },
   },
@@ -92,33 +66,13 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:8080', 
-      'http://localhost:8081',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:8080',
-      'http://127.0.0.1:8081',
-      'http://127.0.0.1:3000'
-    ];
-    
-    // Add production frontend URL
-    if (process.env.FRONTEND_URL) {
-      allowedOrigins.push(process.env.FRONTEND_URL);
-    }
-    
-    // Allow all Vercel domains in production
-    if (process.env.NODE_ENV === 'production' && origin && origin.includes('.vercel.app')) {
-      return callback(null, true);
-    }
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      // Allow all origins in production for now
-      callback(null, true);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -197,31 +151,14 @@ app.get('/', (req, res) => {
   res.json({ message: 'Ticketeer backend is running!' });
 });
 
-// Production error handling middleware
-app.use(errorLogger);
+// Error handling middleware
 app.use((err, req, res, next) => {
-  if (process.env.NODE_ENV === 'production') {
-    // Don't leak error details in production
-    res.status(err.status || 500).json({ 
-      error: 'Internal server error',
-      timestamp: new Date().toISOString()
-    });
-  } else {
-    // Detailed errors in development
-    res.status(err.status || 500).json({ 
-      error: err.message,
-      stack: err.stack
-    });
-  }
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// Environment variable validation
-const requiredEnvVars = ['JWT_SECRET', 'MONGO_URI'];
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-
-if (missingEnvVars.length > 0) {
-  console.error('FATAL ERROR: Missing required environment variables:', missingEnvVars);
-  console.error('Available env vars:', Object.keys(process.env).filter(key => !key.includes('SECRET')));
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined in .env');
   process.exit(1);
 }
 
