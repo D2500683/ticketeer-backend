@@ -8,27 +8,43 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const { logger, errorLogger } = require('./middleware/logger');
 require('dotenv').config();
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:8080', 
-      'http://localhost:8081',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:8080',
-      'http://127.0.0.1:8081',
-      'http://127.0.0.1:3000'
-    ],
+    origin: process.env.NODE_ENV === 'production' 
+      ? [process.env.FRONTEND_URL, 'https://*.vercel.app']
+      : [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'http://localhost:8080',
+          'http://localhost:8081',
+          'http://127.0.0.1:5173',
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:8080',
+          'http://127.0.0.1:8081'
+        ],
     methods: ['GET', 'POST']
   }
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Production logging middleware
+app.use(logger);
+
+// Health check endpoint for production monitoring
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Security Middleware
 // Set security HTTP headers
@@ -169,10 +185,22 @@ app.get('/', (req, res) => {
   res.json({ message: 'Ticketeer backend is running!' });
 });
 
-// Error handling middleware
+// Production error handling middleware
+app.use(errorLogger);
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  if (process.env.NODE_ENV === 'production') {
+    // Don't leak error details in production
+    res.status(err.status || 500).json({ 
+      error: 'Internal server error',
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    // Detailed errors in development
+    res.status(err.status || 500).json({ 
+      error: err.message,
+      stack: err.stack
+    });
+  }
 });
 
 if (!process.env.JWT_SECRET) {
