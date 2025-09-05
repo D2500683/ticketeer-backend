@@ -16,8 +16,14 @@ const io = new Server(server, {
   cors: {
     origin: process.env.ALLOWED_ORIGINS ? 
       process.env.ALLOWED_ORIGINS.split(',') : 
-      ['https://ticketeer-frontend-qt4y.vercel.app'],
-    methods: ['GET', 'POST']
+      [
+        'https://ticketeer-frontend-qt4y.vercel.app',
+        'https://ticketeer-frontend.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:3000'
+      ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    credentials: true
   }
 });
 
@@ -65,13 +71,28 @@ const authLimiter = rateLimit({
 // CORS configuration - must come before other middleware
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
   process.env.ALLOWED_ORIGINS.split(',') : 
-  ['https://ticketeer-frontend-qt4y.vercel.app'];
+  [
+    'https://ticketeer-frontend-qt4y.vercel.app',
+    'https://ticketeer-frontend.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   optionsSuccessStatus: 200
 }));
 
