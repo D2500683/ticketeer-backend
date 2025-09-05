@@ -75,8 +75,18 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS ?
     'https://ticketeer-frontend-qt4y.vercel.app',
     'https://ticketeer-frontend.vercel.app',
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    // Add wildcard for Vercel preview deployments
+    'https://ticketeer-frontend-git-main-d2500683s-projects.vercel.app'
   ];
+
+console.log('Allowed CORS origins:', allowedOrigins);
+
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin || 'none'}`);
+  next();
+});
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -93,8 +103,27 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 }));
+
+// Handle preflight requests explicitly
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  console.log('Preflight request from origin:', origin);
+  
+  if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    res.sendStatus(200);
+  } else {
+    console.log('Preflight blocked for origin:', origin);
+    res.sendStatus(403);
+  }
+});
 
 // Apply rate limiting
 app.use('/api/', limiter);
