@@ -12,6 +12,8 @@ const router = express.Router();
 // Get all events (public - for explore page)
 router.get('/', async (req, res) => {
   try {
+    console.log('GET /api/events - Request received with query:', req.query);
+    
     const { page = 1, limit = 10, search, status } = req.query;
     
     const query = {};
@@ -29,6 +31,9 @@ router.get('/', async (req, res) => {
       ];
     }
 
+    console.log('MongoDB query:', query);
+    console.log('Pagination - page:', page, 'limit:', limit);
+
     const events = await Event.find(query)
       .populate('organizer', 'username')
       .sort({ startDate: 1 })
@@ -36,16 +41,27 @@ router.get('/', async (req, res) => {
       .skip((page - 1) * limit)
       .select('-eventPassword');
 
-    const total = await Event.countDocuments(query);
+    console.log('Events found:', events.length);
 
-    res.json({
+    const total = await Event.countDocuments(query);
+    console.log('Total events count:', total);
+
+    const response = {
       events,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       total
-    });
+    };
+
+    console.log('Sending response with', events.length, 'events');
+    res.json(response);
   } catch (error) {
-    res.status(500).json({ error: 'Server error while fetching events' });
+    console.error('Error in GET /api/events:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Server error while fetching events',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

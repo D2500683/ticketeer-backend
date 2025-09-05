@@ -158,13 +158,63 @@ app.use(sanitizeInput);
 // Make io available to routes
 app.set('io', io);
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/ticketeer';
-mongoose.connect(MONGO_URI);
+// Check for required environment variables
+const requiredEnvVars = ['JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('Missing required environment variables:', missingEnvVars);
+  console.error('Please set these environment variables before starting the server');
+  process.exit(1);
+}
+
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/ticketeer';
+console.log('Attempting to connect to MongoDB with URI:', MONGO_URI ? 'URI provided' : 'No URI found');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Present' : 'Missing');
+
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).catch(err => {
+  console.error('MongoDB connection failed:', err);
+  process.exit(1);
+});
 
 const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+db.on('error', (error) => {
+  console.error('MongoDB connection error:', error);
+});
 db.once('open', () => {
-  console.log('Connected to MongoDB');
+  console.log('Successfully connected to MongoDB');
+});
+
+// Add global error handler middleware that preserves CORS headers
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  
+  // Ensure CORS headers are present even on errors
+  const origin = req.headers.origin;
+  const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
+    process.env.ALLOWED_ORIGINS.split(',') : 
+    [
+      'https://ticketeer-backend-2.onrender.com',
+      'https://ticketeer-frontend-qt4y.vercel.app',
+      'https://ticketeer-frontend.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ];
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  }
+  
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
 });
 
 // Auth routes
