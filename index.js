@@ -14,7 +14,9 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [],
+    origin: process.env.ALLOWED_ORIGINS ? 
+      process.env.ALLOWED_ORIGINS.split(',') : 
+      ['https://ticketeer-frontend-qt4y.vercel.app'],
     methods: ['GET', 'POST']
   }
 });
@@ -66,7 +68,9 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
+      process.env.ALLOWED_ORIGINS.split(',') : 
+      ['https://ticketeer-frontend-qt4y.vercel.app'];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
