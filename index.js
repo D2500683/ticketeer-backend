@@ -73,6 +73,7 @@ const authLimiter = rateLimit({
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
   process.env.ALLOWED_ORIGINS.split(',') : 
   [
+    'https://ticketeer-backend-2.onrender.com',
     'https://ticketeer-frontend-qt4y.vercel.app',
     'https://ticketeer-frontend.vercel.app',
     'http://localhost:5173',
@@ -91,13 +92,16 @@ app.use((req, res, next) => {
 
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('CORS check for origin:', origin);
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('CORS allowed for origin:', origin);
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -108,20 +112,20 @@ app.use(cors({
   preflightContinue: false
 }));
 
-// Handle preflight requests explicitly
+// Explicit OPTIONS handler for preflight requests
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  console.log('Preflight request from origin:', origin);
+  console.log('OPTIONS preflight request from origin:', origin);
   
   if (!origin || allowedOrigins.indexOf(origin) !== -1) {
     res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400');
     res.sendStatus(200);
   } else {
-    console.log('Preflight blocked for origin:', origin);
+    console.log('OPTIONS blocked for origin:', origin);
     res.sendStatus(403);
   }
 });
