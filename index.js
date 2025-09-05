@@ -203,8 +203,13 @@ app.use((err, req, res, next) => {
   }
 });
 
-if (!process.env.JWT_SECRET) {
-  console.error('FATAL ERROR: JWT_SECRET is not defined in .env');
+// Environment variable validation
+const requiredEnvVars = ['JWT_SECRET', 'MONGO_URI'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('FATAL ERROR: Missing required environment variables:', missingEnvVars);
+  console.error('Available env vars:', Object.keys(process.env).filter(key => !key.includes('SECRET')));
   process.exit(1);
 }
 
