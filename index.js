@@ -7,15 +7,14 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const { createServer } = require('http');
-const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
+const io = require('socket.io')(server, {
   cors: {
     origin: process.env.ALLOWED_ORIGINS ? 
-      process.env.ALLOWED_ORIGINS.split(',') : 
+      process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()) : 
       [
         'https://ticketeer-backend-2.onrender.com',
         'https://ticketeer-frontend-qt4y.vercel.app',
@@ -71,7 +70,7 @@ const authLimiter = rateLimit({
 
 // CORS configuration - must come before other middleware
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-  process.env.ALLOWED_ORIGINS.split(',') : 
+  process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim().replace(/\/$/, '')) : 
   [
     'https://ticketeer-backend-2.onrender.com',
     'https://ticketeer-frontend-qt4y.vercel.app',
@@ -96,11 +95,15 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Normalize origin by removing trailing slash
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    
+    if (allowedOrigins.indexOf(normalizedOrigin) !== -1) {
       console.log('CORS allowed for origin:', origin);
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
+      console.log('Normalized origin:', normalizedOrigin);
       console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
@@ -117,7 +120,9 @@ app.options('*', (req, res) => {
   const origin = req.headers.origin;
   console.log('OPTIONS preflight request from origin:', origin);
   
-  if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+  const normalizedOrigin = origin ? origin.replace(/\/$/, '') : null;
+  
+  if (!origin || allowedOrigins.indexOf(normalizedOrigin) !== -1) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
