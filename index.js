@@ -137,7 +137,7 @@ app.options('*', (req, res) => {
 
 // Apply rate limiting
 app.use('/api/', limiter);
-app.use('/api/auth/', authLimiter);
+// app.use('/api/auth/', authLimiter); // Disabled for development
 
 // Data sanitization against NoSQL query injection - handled by our custom sanitization middleware
 
