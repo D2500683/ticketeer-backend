@@ -8,7 +8,7 @@ async function sendConfirmationEmail(user) {
     process.env.JWT_SECRET,
     { expiresIn: '1d' }
   );
-  const url = `${BASE_URL}/api/auth/confirm/${token}`;
+  const url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm-email/${token}`;
   const html = `
     <h2>Welcome to Ticketeer!</h2>
     <p>Please confirm your email by clicking the link below:</p>
