@@ -219,6 +219,17 @@ const eventSchema = new mongoose.Schema({
       message: 'Please enter a valid WhatsApp number (e.g., +230 5XXX XXXX)'
     }
   },
+  accountNumber: {
+    type: String,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        // Optional field, but if provided, should be a valid bank account number
+        return !v || /^[0-9]{10,20}$/.test(v);
+      },
+      message: 'Please enter a valid bank account number (10-20 digits)'
+    }
+  },
 });
 
 // Update the updatedAt field before saving

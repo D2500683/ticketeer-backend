@@ -193,6 +193,9 @@ router.post(
     }
 
     try {
+      console.log('Creating event with request body:', req.body);
+      console.log('Account number received:', req.body.accountNumber);
+      
       const eventData = {
         ...req.body,
         organizer: req.user.userId,
@@ -200,13 +203,31 @@ router.post(
         endDate: new Date(req.body.endDate)
       };
 
+      console.log('Event data before save:', eventData);
+      console.log('Account number in eventData:', eventData.accountNumber);
+
       // Validate end date is after start date
       if (eventData.endDate <= eventData.startDate) {
         return res.status(400).json({ error: 'End date must be after start date' });
       }
 
       const event = new Event(eventData);
+      console.log('Event object before save:', event.toObject());
+      
+      // Validate the event before saving
+      const validationError = event.validateSync();
+      if (validationError) {
+        console.log('Validation error:', validationError);
+        return res.status(400).json({ error: 'Validation failed', details: validationError });
+      }
+      
       await event.save();
+      console.log('Event saved successfully');
+      
+      // Fetch the saved event to verify accountNumber was persisted
+      const savedEvent = await Event.findById(event._id);
+      console.log('Saved event from DB:', savedEvent.toObject());
+      console.log('Account number in saved event:', savedEvent.accountNumber);
 
       // Auto-create live playlist if enabled
       if (eventData.enableLivePlaylist) {
