@@ -60,7 +60,7 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['card', 'mcb-juice', 'mcb-juice-manual', 'mcb-juice-whatsapp', 'bank_transfer']
+    enum: ['card', 'mcb-juice', 'mcb-juice-manual', 'mcb-juice-whatsapp', 'bank_transfer', 'bank-transfer-whatsapp']
   },
   paymentStatus: {
     type: String,
