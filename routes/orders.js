@@ -123,6 +123,85 @@ router.post('/mcb-juice-whatsapp', async (req, res) => {
   }
 });
 
+// POST /api/orders/bank-transfer-whatsapp - Create Bank Transfer order with WhatsApp verification
+router.post('/bank-transfer-whatsapp', async (req, res) => {
+  try {
+    const {
+      eventId,
+      customerInfo,
+      tickets,
+      totalAmount,
+      paymentReference,
+      organizerWhatsApp
+    } = req.body;
+
+    // Validate required fields
+    if (!eventId || !customerInfo || !tickets || !totalAmount || !paymentReference) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: eventId, customerInfo, tickets, totalAmount, paymentReference' 
+      });
+    }
+
+    // Verify event exists
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Create attendee records for guest users
+    const attendees = tickets.map(ticket => ({
+      ticketType: ticket.name,
+      quantity: ticket.quantity,
+      customerInfo: {
+        firstName: customerInfo.firstName,
+        lastName: customerInfo.lastName,
+        email: customerInfo.email
+      },
+      isGuest: true
+    }));
+
+    // Create new order with WhatsApp verification pending
+    const order = new Order({
+      eventId,
+      customerInfo,
+      tickets,
+      totalAmount: parseFloat(totalAmount),
+      paymentMethod: 'bank-transfer-whatsapp',
+      paymentStatus: 'pending_whatsapp_verification',
+      paymentReference,
+      organizerWhatsApp,
+      verificationNotes: 'Bank transfer details sent via WhatsApp. Awaiting organizer verification.',
+      attendees
+    });
+
+    // Save order to database
+    const savedOrder = await order.save();
+
+    // Update event with new attendees
+    event.attendees = event.attendees || [];
+    event.attendees.push(...attendees);
+    
+    // Update total tickets sold
+    const totalTicketsPurchased = tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
+    event.totalTicketsSold = (event.totalTicketsSold || 0) + totalTicketsPurchased;
+    
+    await event.save();
+
+    console.log(`WhatsApp Bank Transfer order created: ${savedOrder._id}, awaiting organizer verification`);
+
+    res.status(201).json({
+      _id: savedOrder._id,
+      orderId: savedOrder._id,
+      orderNumber: savedOrder.orderNumber,
+      status: 'pending_whatsapp_verification',
+      message: 'Order created successfully. Bank transfer details sent via WhatsApp. Awaiting organizer verification.'
+    });
+  } catch (error) {
+    console.error('Error creating WhatsApp Bank Transfer order:', error);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
 // POST /api/orders/mcb-juice - Create MCB Juice order with screenshot
 router.post('/mcb-juice', upload.single('transferScreenshot'), async (req, res) => {
   try {
